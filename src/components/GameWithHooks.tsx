@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useReducer } from 'react'
 import { Board } from './Board'
 
 type Square = string | null
@@ -7,46 +7,65 @@ type HistoryItem = {
   squares: Square[]
 }
 
+type GameState = {
+  history: HistoryItem[],
+  stepNumber: number,
+  xIsNext: boolean
+}
+
+const initialGameState = {
+  history: [{
+    squares: Array(9).fill(null)
+  }],
+  stepNumber: 0,
+  xIsNext: true
+}
+
+type GameAction = {
+  type: string,
+  step?: number,
+  index?: number
+}
+
+enum GameActionType {
+  CLICK_SQUARE = 'CLICK_SQUARE',
+  JUMP_TO = 'JUMP_TO'
+}
+
+const gameReducer = (state: GameState, action: GameAction) => {
+  switch (action.type) {
+    case GameActionType.CLICK_SQUARE:
+      const current = state.history[state.stepNumber]
+      const squares = current.squares.slice()
+      const winner = calculateWinner(squares)
+      if (winner || squares[action.index!]) {
+        return state
+      }
+      squares[action.index!] = state.xIsNext ? 'X' : 'O'
+      const nextStep = state.stepNumber + 1
+      return {
+        history: state.history.slice(0, nextStep).concat([{
+          squares
+        }]),
+        stepNumber: nextStep,
+        xIsNext: !state.xIsNext
+      }
+    case GameActionType.JUMP_TO:
+      return {
+        ...state,
+        stepNumber: action.step!,
+        xIsNext: action.step! % 2 === 0
+      }
+    default:
+      throw new Error()
+  }
+}
+
 export const GameWithHooks = () => {
-  const [history, setHistory] = useState<HistoryItem[]>([{
-    squares: Array<Square>(9).fill(null)
-  }])
-  const [stepNumber, setStepNumber] = useState<number>(0)
-  const [xIsNext, setXIsNext] = useState<boolean>(true)
+  const [state, dispatch] = useReducer(gameReducer, initialGameState)
 
-  const current = history[stepNumber]
+  const current = state.history[state.stepNumber]
   const winner = calculateWinner(current.squares)
-
-  const handleClick = (i: number) => {
-    const squares = current.squares.slice()
-    if (winner || squares[i]) {
-      return
-    }
-    squares[i] = xIsNext ? 'X' : 'O'
-    const nextStep = stepNumber + 1
-    setHistory(history.slice(0, nextStep).concat([{
-      squares
-    }]))
-    setStepNumber(nextStep)
-    setXIsNext(!xIsNext)
-  }
-
-  const jumpTo = (step: number) => {
-    setStepNumber(step)
-    setXIsNext(step % 2 === 0)
-  }
-
-  const moves = history.map((_, move: number) => {
-    const desc = move
-      ? `Go to move #${move}`
-      : 'Go to game start'
-    return (
-      <li key={move}>
-        <button onClick={() => jumpTo(move)}>{desc}</button>
-      </li>
-    )
-  })
-
   let status: string
   switch (winner) {
     case 'X':
@@ -57,16 +76,27 @@ export const GameWithHooks = () => {
       status = 'Draw'
       break
     default:
-      status = `Next player: ${xIsNext ? 'X' : 'O'}`
+      status = `Next player: ${state.xIsNext ? 'X' : 'O'}`
       break
   }
+
+  const moves = state.history.map((_, move: number) => {
+    const desc = move
+      ? `Go to move #${move}`
+      : 'Go to game start'
+    return (
+      <li key={move}>
+        <button onClick={() => dispatch({type: GameActionType.JUMP_TO, step: move})}>{desc}</button>
+      </li>
+    )
+  })
 
   return (
     <div className="game">
       <div className="game-board">
-        <Board 
+        <Board
           squares={current.squares}
-          onClick={(i) => handleClick(i)}
+          onClick={(i) => dispatch({type: GameActionType.CLICK_SQUARE, index: i})}
         />
       </div>
       <div className="game-info">
