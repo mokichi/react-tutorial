@@ -1,68 +1,10 @@
-import React, { useReducer } from 'react'
+import React, { useContext } from 'react'
 import { Board } from './Board'
+import { gameContext, GameProvider, GameActionType } from '../contexts/GameContext'
+import { calculateWinner } from '../util'
 
-type Square = string | null
-
-type HistoryItem = {
-  squares: Square[]
-}
-
-type GameState = {
-  history: HistoryItem[],
-  stepNumber: number,
-  xIsNext: boolean
-}
-
-const initialGameState = {
-  history: [{
-    squares: Array(9).fill(null)
-  }],
-  stepNumber: 0,
-  xIsNext: true
-}
-
-type GameAction = {
-  type: string,
-  step?: number,
-  index?: number
-}
-
-enum GameActionType {
-  CLICK_SQUARE = 'CLICK_SQUARE',
-  JUMP_TO = 'JUMP_TO'
-}
-
-const gameReducer = (state: GameState, action: GameAction) => {
-  switch (action.type) {
-    case GameActionType.CLICK_SQUARE:
-      const current = state.history[state.stepNumber]
-      const squares = current.squares.slice()
-      const winner = calculateWinner(squares)
-      if (winner || squares[action.index!]) {
-        return state
-      }
-      squares[action.index!] = state.xIsNext ? 'X' : 'O'
-      const nextStep = state.stepNumber + 1
-      return {
-        history: state.history.slice(0, nextStep).concat([{
-          squares
-        }]),
-        stepNumber: nextStep,
-        xIsNext: !state.xIsNext
-      }
-    case GameActionType.JUMP_TO:
-      return {
-        ...state,
-        stepNumber: action.step!,
-        xIsNext: action.step! % 2 === 0
-      }
-    default:
-      throw new Error()
-  }
-}
-
-export const GameWithHooks = () => {
-  const [state, dispatch] = useReducer(gameReducer, initialGameState)
+const Game = () => {
+  const { state, dispatch } = useContext(gameContext)
 
   const current = state.history[state.stepNumber]
   const winner = calculateWinner(current.squares)
@@ -86,7 +28,7 @@ export const GameWithHooks = () => {
       : 'Go to game start'
     return (
       <li key={move}>
-        <button onClick={() => dispatch({type: GameActionType.JUMP_TO, step: move})}>{desc}</button>
+        <button onClick={() => dispatch({ type: GameActionType.JUMP_TO, step: move })}>{desc}</button>
       </li>
     )
   })
@@ -96,7 +38,7 @@ export const GameWithHooks = () => {
       <div className="game-board">
         <Board
           squares={current.squares}
-          onClick={(i) => dispatch({type: GameActionType.CLICK_SQUARE, index: i})}
+          onClick={(i) => dispatch({ type: GameActionType.CLICK_SQUARE, index: i })}
         />
       </div>
       <div className="game-info">
@@ -107,25 +49,8 @@ export const GameWithHooks = () => {
   )
 }
 
-function calculateWinner(squares: Square[]) {
-  const lines = [
-    [0, 1, 2],
-    [3, 4, 5],
-    [6, 7, 8],
-    [0, 3, 6],
-    [1, 4, 7],
-    [2, 5, 8],
-    [0, 4, 8],
-    [2, 4, 6],
-  ];
-  for (let i = 0; i < lines.length; i++) {
-    const [a, b, c] = lines[i];
-    if (squares[a] && squares[a] === squares[b] && squares[a] === squares[c]) {
-      return squares[a];
-    }
-  }
-  if (squares.every(v => v)) {
-    return 'D'
-  }
-  return null;
-}
+export const GameWithHooks = () => (
+  <GameProvider>
+    <Game />
+  </GameProvider>
+)
